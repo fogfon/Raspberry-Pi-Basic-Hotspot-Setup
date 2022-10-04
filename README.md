@@ -1,1 +1,144 @@
-# Raspberry-Pi-Basic-Hotspot-Setup
+## Setup Hotspot on Raspberry Pi OS <br>
+### Tested on Raspberry 400 with latest Raspberry Pi OS (64-bit) bullseye<br>
+### This is a list of all needed commands<br>
+### You should fairly know what you do<br>
+<br>
+sudo su &emsp; # working as root is easier<br>
+ip l &emsp;	# list of networkdevices and their MAC adresses<br>
+export MAC_WLAN_INT=xx:xx:xx:xx:xx:xx &emsp; # Find devices MAC adresses<br>
+export MAC_WLAN_USB=xx:xx:xx:xx:xx:xx &emsp; # internal wifi has the same mac in the beginning like eth0<br>
+<br>
+apt update<br>
+apt install dnsmasq hostapd<br>
+<br>
+# predictable names in raspi-config does not work on internal devices <br>
+# we rename our network devices ourselves<br>
+ cat << EOF > /etc/systemd/network/19-onboard_wifi_hotspot.link<br>
+[Match]<br>
+MACAddress=$MAC_WLAN_INT<br>
+[Link]<br>
+Name=hotspot<br>
+EOF<br>
+<br>
+ cat << EOF > /etc/systemd/network/20-freifunk.link<br>
+[Match]<br>
+MACAddress=$MAC_WLAN_USB <br>
+[Link]<br>
+Name=freifunk<br>
+EOF<br>
+<br>
+# Reboot<br>
+<br>
+<br>
+sudo su<br>
+ip l &emsp; # check, if your changes are working <br>
+export FREIFUNK=freifunk.net &emsp; # SSID of our Freifunk Router as a range extender <br>
+export PW="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 	# Hotspot Password <br>
+export SSID="XXXXXXXX" &emsp; # Hotspot ssid <br>
+export COUNTRY-CODE="XX" &emsp; # in the Format DE (Germany) or US or .... <br>
+<br>
+cat << EOF >> /etc/network/interfaces<br>
+# Freifunk<br>
+auto freifunk<br>
+iface freifunk inet dhcp<br>
+        wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf<br>
+EOF<br>
+<br>
+cat << EOF >> /etc/wpa_supplicant/wpa_supplicant.conf<br>
+network={<br>
+        ssid="$FREIFUNK"<br>
+        scan_ssid=1<br>
+        key_mgmt=NONE<br>
+        }<br>
+EOF<br>
+<br>
+systemctl restart networking<br>
+<br>
+cat << EOF >> /etc/dhcpcd.conf<br>
+# Hotspot_Settings<br>
+interface hotspot<br>
+static ip_address=192.168.1.1/24<br>
+nohook wpa_supplicant<br>
+EOF<br>
+<br>
+systemctl restart dhcpcd<br>
+<br>
+mv /etc/dnsmasq.conf /etc/dnsmasq.conf_$(date +%Y%m%e%H%M%S)<br>
+cat << EOF > /etc/dnsmasq.conf<br>
+# DHCP-Server active for Hotspot<br>
+interface=hotspot<br>
+# DHCP-Server not activ for<br>
+no-dhcp-interface=eth0 freifunk<br>
+# IPv4-Adressrange and Lease-Time, infinite is perhaps better than 24h lease time<br>
+dhcp-range=192.168.1.100,192.168.1.200,255.255.255.0,24h<br>
+# DNS<br>
+dhcp-option=option:dns-server,192.168.1.1<br>
+EOF<br>
+<br>
+#dnsmasq --test -C /etc/dnsmasq.conf<br>
+systemctl restart dnsmasq<br>
+systemctl enable dnsmasq<br>
+systemctl status dnsmasq<br>
+<br>
+cat << EOF > /etc/hostapd/hostapd.conf<br>
+# Hotspot Settings<br>
+# Interface<br>
+interface=hotspot<br>
+# Wifi-Configuration<br>
+ssid=$SSID<br>
+channel=1<br>
+hw_mode=g<br>
+ieee80211n=1<br>
+ieee80211d=1<br>
+country_code=$COUNTRY-CODE<br>
+wmm_enabled=1<br>
+# Wifi-Encryption<br>
+auth_algs=1<br>
+wpa=2<br>
+wpa_key_mgmt=WPA-PSK<br>
+rsn_pairwise=CCMP<br>
+wpa_passphrase=$PW<br>
+EOF<br>
+<br>
+chmod 600 /etc/hostapd/hostapd.conf<br>
+<br>
+cat << EOF >> /etc/default/hostapd<br>
+# Hotspot_Setting<br>
+RUN_DAEMON=yes<br>
+DAEMON_CONF="/etc/hostapd/hostapd.conf"<br>
+EOF<br>
+<br>
+systemctl unmask hostapd<br>
+systemctl start hostapd<br>
+systemctl enable hostapd<br>
+systemctl status hostapd<br>
+<br>
+cat << EOF >> /etc/sysctl.conf<br>
+# Hotspot_Setting<br>
+net.ipv4.ip_forward=1<br>
+EOF<br>
+<br>
+# Minimal Firewallsettings, will be extended in the future<br>
+cat << EOF >> /etc/nftables.conf<br>
+table ip nat {<br>
+	chain postrouting {<br>
+		type nat hook postrouting priority srcnat; policy accept;<br>
+		oifname "eth0" counter masquerade<br>
+		oifname "freifunk" counter masquerade<br>
+	}<br>
+}<br>
+EOF<br>
+<br>
+systemctl restart nftables<br>
+systemctl enable nftables.service<br>
+<br>
+# Deactivate sudo without password, very important for security!!!<br>
+# Be carefull!!! Danger of locking out yourself from sudo!!!!<br>
+# As a backupsolution, start a second terminal, gain root: <br>
+sudo su<br>
+cp /etc/sudoers.d/010_pi-nopasswd .<br>
+# In first terminal<br>
+visudo /etc/sudoers.d/010_pi-nopasswd # if your username is pi change the line to: <br>
+pi ALL=(ALL) ALL<br>
+# else<br>
+yourusername ALL=(ALL) ALL<br>
