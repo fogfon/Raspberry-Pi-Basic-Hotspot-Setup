@@ -1,26 +1,26 @@
-## Setup Hotspot on Raspberry Pi OS <br>
-### Tested on Raspberry 400 with latest Raspberry Pi OS (64-bit) bullseye<br>
-### This is a list of all needed commands<br>
-### You should fairly know what you do<br>
+## Setup Hotspot on Raspberry Pi OS with second usb wifi connected to <a href="https://de.wikipedia.org/wiki/Freifunk" title="Freifunk">Freifunk</a><br>
 <br>
-sudo su &emsp; # working as root is easier<br>
-ip l &emsp;	# list of networkdevices and their MAC adresses<br>
-export MAC_WLAN_INT=xx:xx:xx:xx:xx:xx &emsp; # Find devices MAC adresses<br>
-export MAC_WLAN_USB=xx:xx:xx:xx:xx:xx &emsp; # internal wifi has the same mac in the beginning like eth0<br>
+# Tested on Raspberry 400 with latest Raspberry Pi OS (64-bit) bullseye<br>
+# This is a list of all needed commands<br>
+# You should fairly know what you do<br>
 <br>
-apt update<br>
-apt install dnsmasq hostapd<br>
+# Predictable names in raspi-config does not work on internal devices <br>
+# We rename our network devices ourselves<br>
+sudo su <br>
+# Show network devices and their MAC adresses<br>
+ip l <br>
+# Internal wifi has the same MAC in the beginning like eth0 <br>
+export MAC_WLAN_INT=xx:xx:xx:xx:xx:xx <br>
+export MAC_WLAN_USB=xx:xx:xx:xx:xx:xx <br> 
 <br>
-# predictable names in raspi-config does not work on internal devices <br>
-# we rename our network devices ourselves<br>
- cat << EOF > /etc/systemd/network/19-onboard_wifi_hotspot.link<br>
+cat << EOF > /etc/systemd/network/19-onboard_wifi_hotspot.link<br>
 [Match]<br>
 MACAddress=$MAC_WLAN_INT<br>
 [Link]<br>
 Name=hotspot<br>
 EOF<br>
 <br>
- cat << EOF > /etc/systemd/network/20-freifunk.link<br>
+cat << EOF > /etc/systemd/network/20-freifunk.link<br>
 [Match]<br>
 MACAddress=$MAC_WLAN_USB <br>
 [Link]<br>
@@ -31,11 +31,19 @@ EOF<br>
 <br>
 <br>
 sudo su<br>
-ip l &emsp; # check, if your changes are working <br>
-export FREIFUNK=freifunk.net &emsp; # SSID of our Freifunk Router as a range extender <br>
-export PW="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 	# Hotspot Password <br>
-export SSID="XXXXXXXX" &emsp; # Hotspot ssid <br>
-export COUNTRY-CODE="XX" &emsp; # in the Format DE (Germany) or US or .... <br>
+# check, if your changes are working  <br>
+ip l <br>
+# Set SSID of Freifunk Router as a range extender>
+export FREIFUNK=freifunk.net <br>
+# Set Hotspot Password <br>
+export PW="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 	<br>
+# Set  Hotspot SSID <br>
+export SSID="XXXXXXXX" <br>
+# Set country code in the Format DE (Germany) or US or .... <br>
+export COUNTRY-CODE="XX"  <br>
+<br>
+apt update<br>
+apt install dnsmasq hostapd<br>
 <br>
 cat << EOF >> /etc/network/interfaces<br>
 # Freifunk<br>
@@ -129,7 +137,7 @@ table ip nat {<br>
 }<br>
 EOF<br>
 <br>
-systemctl restart nftables<br>
+systemctl start nftables<br>
 systemctl enable nftables.service<br>
 <br>
 # Deactivate sudo without password, very important for security!!!<br>
@@ -137,8 +145,8 @@ systemctl enable nftables.service<br>
 # As a backupsolution, start a second terminal, gain root: <br>
 sudo su<br>
 cp /etc/sudoers.d/010_pi-nopasswd .<br>
-# In first terminal<br>
-visudo /etc/sudoers.d/010_pi-nopasswd # if your username is pi change the line to: <br>
+# If your username is pi change the line to: <br>
+visudo /etc/sudoers.d/010_pi-nopasswd 
 pi ALL=(ALL) ALL<br>
 # else<br>
 yourusername ALL=(ALL) ALL<br>
