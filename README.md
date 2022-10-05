@@ -33,7 +33,7 @@ EOF<br>
 sudo su<br>
 # check, if your changes are working  <br>
 ip l <br>
-# Set SSID of Freifunk Router as a range extender>
+# Set SSID of Freifunk Router as a range extender<br>
 export FREIFUNK=freifunk.net <br>
 # Set Hotspot Password <br>
 export PW="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 	<br>
